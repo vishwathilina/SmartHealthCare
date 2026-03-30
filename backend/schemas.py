@@ -6,7 +6,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ProfileBase(BaseModel):
-    user_id: UUID
+    # Optional for requests; backend will derive it from the authenticated caregiver.
+    user_id: UUID | None = None
     label: str = "My Profile"
     age: Optional[int] = None
     weight_kg: Optional[float] = None
@@ -40,6 +41,8 @@ class ProfileUpdate(BaseModel):
 class ProfileOut(ProfileBase):
     id: UUID
     updated_at: datetime
+    # Assigned hospital (one hospital per elderly profile).
+    hospital_user_id: UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -129,6 +132,76 @@ class AlertLogWithContext(AlertLogOut):
     request_title: Optional[str] = None
     profile_id: UUID
     profile_label: Optional[str] = None
+
+
+class EmergencyContactOut(BaseModel):
+    name: str
+    phone: str | None = None
+    relation: str | None = None
+
+
+class EmergencyProfileOption(BaseModel):
+    profile_id: UUID
+    label: str
+    hospital_name: str | None = None
+    hospital_user_id: UUID | None = None
+    contacts: list[EmergencyContactOut] = []
+
+
+class EmergencyLookupIn(BaseModel):
+    pin: str
+
+
+class EmergencyLookupOut(BaseModel):
+    profiles: list[EmergencyProfileOption]
+
+
+class EmergencyRequestIn(BaseModel):
+    pin: str
+    profile_id: UUID
+    message: str | None = None
+    image_base64: str | None = None
+    audio_base64: str | None = None
+    audio_mime_type: str | None = None
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class CaregiverRegisterIn(BaseModel):
+    name: str
+    email: str
+    password: str
+    pin: str
+
+
+class HospitalRegisterIn(BaseModel):
+    hospital_name: str
+    email: str
+    password: str
+
+
+class HospitalAssignmentIn(BaseModel):
+    hospital_user_id: UUID
+
+
+class EmergencyContactsIn(BaseModel):
+    name: str
+    phone: str | None = None
+    relation: str | None = None
+
+
+class HospitalOut(BaseModel):
+    hospital_user_id: UUID
+    hospital_name: str
+    email: str | None = None
 
 
 class RecentRequestOut(BaseModel):

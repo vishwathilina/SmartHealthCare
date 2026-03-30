@@ -6,3 +6,5 @@ python-dotenv
 httpx
 python-multipart
 pillow
+python-jose[cryptography]
+passlib[bcrypt]

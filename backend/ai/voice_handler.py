@@ -19,6 +19,7 @@ voice_router = APIRouter(prefix="/voice", tags=["voice"])
 
 class VoiceTranscribeIn(BaseModel):
     audio_base64: str
+    audio_mime_type: str | None = None
 
 
 def _strip_data_uri(value: str) -> str:
@@ -33,11 +34,17 @@ async def transcribe_audio(payload: VoiceTranscribeIn) -> dict[str, Any]:
     if not api_key:
         return {"transcript": "", "error": "use browser speech API"}
 
+    transcribe_model = os.getenv("GEMINI_TRANSCRIBE_MODEL", MODEL)
+    endpoint = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{transcribe_model}:generateContent"
+    )
+
     parts = [
         {"text": "Transcribe this audio exactly. Return only the transcript text."},
         {
             "inlineData": {
-                "mimeType": "audio/wav",
+                "mimeType": payload.audio_mime_type or "audio/wav",
                 "data": _strip_data_uri(payload.audio_base64),
             }
         },
@@ -47,7 +54,7 @@ async def transcribe_audio(payload: VoiceTranscribeIn) -> dict[str, Any]:
 
     try:
         async with httpx.AsyncClient(timeout=35) as client:
-            response = await client.post(ENDPOINT, params={"key": api_key}, json=body)
+            response = await client.post(endpoint, params={"key": api_key}, json=body)
             response.raise_for_status()
             data = response.json()
             content = data["candidates"][0]["content"]

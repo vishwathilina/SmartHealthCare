@@ -3,8 +3,7 @@ import toast from "react-hot-toast";
 
 import api from "@/api/client";
 import { HealthProfile, UUID } from "@/types";
-
-const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProfileContextValue {
   profiles: HealthProfile[];
@@ -21,8 +20,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profiles, setProfiles] = useState<HealthProfile[]>([]);
   const [activeProfileId, setActiveProfileIdState] = useState<UUID | "">("");
   const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const { role, token } = useAuth();
 
   const refreshProfiles = async () => {
+    if (!role) {
+      setLoadingProfiles(false);
+      setProfiles([]);
+      return;
+    }
+    if (role !== "caregiver") {
+      setLoadingProfiles(false);
+      setProfiles([]);
+      return;
+    }
     try {
       setLoadingProfiles(true);
       const { data } = await api.get<HealthProfile[]>("/profiles");
@@ -42,8 +52,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Refresh when caregiver auth changes (login/logout).
+    if (!token) {
+      setProfiles([]);
+      setActiveProfileIdState("");
+      setLoadingProfiles(false);
+      return;
+    }
     refreshProfiles();
-  }, []);
+  }, [role, token]);
 
   const setActiveProfileId = (id: UUID) => setActiveProfileIdState(id);
 
@@ -75,5 +92,3 @@ export function useProfileContext() {
   }
   return context;
 }
-
-export { DEMO_USER_ID };

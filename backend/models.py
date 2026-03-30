@@ -16,6 +16,13 @@ class User(Base):
 
     health_profiles = relationship("HealthProfile", back_populates="user", cascade="all, delete")
 
+    caregiver_account = relationship(
+        "CaregiverAccount", back_populates="user", uselist=False, cascade="all, delete"
+    )
+    hospital_account = relationship(
+        "HospitalAccount", back_populates="user", uselist=False, cascade="all, delete"
+    )
+
 
 class HealthProfile(Base):
     __tablename__ = "health_profiles"
@@ -86,6 +93,11 @@ class AlertLog(Base):
     request_id = Column(
         UUID(as_uuid=True), ForeignKey("service_requests.id", ondelete="CASCADE"), nullable=False
     )
+    hospital_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     hospital_name = Column(String(200), nullable=False, default="General Hospital")
     summary = Column(Text, nullable=True)
     image_url = Column(Text, nullable=True)
@@ -93,6 +105,7 @@ class AlertLog(Base):
     sent_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     request = relationship("ServiceRequest", back_populates="alert_logs")
+    hospital = relationship("User")
 
 
 class ChatMessage(Base):
@@ -108,3 +121,64 @@ class ChatMessage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     request = relationship("ServiceRequest", back_populates="chat_messages")
+
+
+class CaregiverAccount(Base):
+    __tablename__ = "caregiver_accounts"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    password_hash = Column(Text, nullable=False)
+    pin_hash = Column(String(64), nullable=False)  # deterministic HMAC-SHA256 hex digest
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="caregiver_account")
+
+
+class HospitalAccount(Base):
+    __tablename__ = "hospital_accounts"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    password_hash = Column(Text, nullable=False)
+    hospital_name = Column(String(200), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="hospital_account")
+
+
+class ProfileHospitalAssignment(Base):
+    __tablename__ = "profile_hospital_assignments"
+
+    profile_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("health_profiles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    hospital_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class EmergencyContact(Base):
+    __tablename__ = "emergency_contacts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("health_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String(100), nullable=False)
+    phone = Column(String(50), nullable=True)
+    relation = Column(String(100), nullable=True)
+

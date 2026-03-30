@@ -17,6 +17,7 @@ export interface HealthProfile {
   conditions?: string;
   medications?: string;
   updated_at: string;
+  hospital_user_id?: UUID | null;
 }
 
 export interface ChatMessage {
@@ -78,4 +79,10 @@ export interface DashboardResponse {
     profile_name?: string;
     created_at: string;
   }[];
+}
+
+export interface HospitalOut {
+  hospital_user_id: UUID;
+  hospital_name: string;
+  email?: string | null;
 }

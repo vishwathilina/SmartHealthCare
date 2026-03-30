@@ -99,14 +99,21 @@ def normalize_triage_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-async def call_gemini(prompt: str, image_base64: str | None = None) -> dict[str, Any]:
+async def call_gemini(
+    prompt: str,
+    image_base64: str | None = None,
+    *,
+    model: str | None = None,
+) -> dict[str, Any]:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return SAFE_DEFAULT
 
+    model = model or os.getenv("GEMINI_TRIAGE_MODEL", MODEL)
+
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"gemini-1.5-flash:generateContent?key={api_key}"
+        f"{model}:generateContent?key={api_key}"
     )
 
     parts: list[dict[str, Any]] = [{"text": prompt}]

@@ -487,19 +487,6 @@ def seed():
 | Voice not working on HTTP | Browser blocks mic | Use `localhost` not `127.0.0.1`, or add HTTPS |
 | Gemini 400 error | Bad image format | Ensure base64 has no `data:image/jpeg;base64,` prefix before sending |
 
-## Demo script (5 minutes)
-
-Follow this exact sequence during the demo:
-
-1. Open Profiles page → create profile: "Amal, 67, diabetic, allergic to penicillin, resting HR 95"
-2. Go to Chat → select Amal's profile → type "I have chest pain and I can't breathe properly"
-3. Show the agent steps running live (ANALYZE → SCORE → CLASSIFY → ALERT)
-4. Severity badge shows CRITICAL → red alert banner appears
-5. Upload a photo of a rash → Gemini analyzes it in context of the allergy profile
-6. Click "Send Alert to Hospital" → show the alert log with patient summary
-7. Go to Requests page → show status lifecycle, filter by CRITICAL
-8. Go to Dashboard → show stats cards
-9. Add a second profile for a family member → repeat a mild symptom → show LOW severity (no alert)
 
 ## Hackathon requirements checklist
 

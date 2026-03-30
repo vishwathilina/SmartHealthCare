@@ -1,10 +1,10 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import api from "@/api/client";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
-import { DEMO_USER_ID, useProfileContext } from "@/context/ProfileContext";
-import { HealthProfile } from "@/types";
+import { useProfileContext } from "@/context/ProfileContext";
+import { HealthProfile, HospitalOut } from "@/types";
 
 const defaultForm = {
   name: "",
@@ -18,6 +18,7 @@ const defaultForm = {
   allergies: "",
   conditions: "",
   medications: "",
+  hospital_user_id: "",
 };
 
 const ProfilesPage = () => {
@@ -26,12 +27,19 @@ const ProfilesPage = () => {
   const [saving, setSaving] = useState(false);
   const [editingProfile, setEditingProfile] = useState<HealthProfile | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [hospitals, setHospitals] = useState<HospitalOut[]>([]);
+  const [loadingHospitals, setLoadingHospitals] = useState(true);
+  const [contacts, setContacts] = useState<{ name: string; phone?: string | null; relation?: string | null }[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [newContactPhone, setNewContactPhone] = useState("");
+  const [newContactRelation, setNewContactRelation] = useState("");
 
   const title = useMemo(() => (editingProfile ? "Edit Profile" : "Add Profile"), [editingProfile]);
 
   const openAddModal = () => {
     setEditingProfile(null);
-    setForm(defaultForm);
+    setForm((prev) => ({ ...defaultForm, hospital_user_id: hospitals[0]?.hospital_user_id || "" }));
     setIsModalOpen(true);
   };
 
@@ -49,15 +57,59 @@ const ProfilesPage = () => {
       allergies: profile.allergies || "",
       conditions: profile.conditions || "",
       medications: profile.medications || "",
+      hospital_user_id: profile.hospital_user_id || "",
     });
+    setContacts([]);
+    setNewContactName("");
+    setNewContactPhone("");
+    setNewContactRelation("");
     setIsModalOpen(true);
   };
+
+  const loadContacts = async (profileId: string) => {
+    try {
+      setContactsLoading(true);
+      const res = await api.get<{ name: string; phone?: string | null; relation?: string | null }[]>(
+        `/profiles/${profileId}/emergency-contacts`
+      );
+      setContacts(res.data);
+    } catch {
+      // Keep modal usable even if contacts fail.
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  // When edit modal opens, load contacts.
+  const openEditModalAndLoad = (profile: HealthProfile) => {
+    openEditModal(profile);
+    loadContacts(profile.id);
+  };
+
+  const loadHospitals = async () => {
+    try {
+      setLoadingHospitals(true);
+      const res = await api.get<HospitalOut[]>("/hospitals");
+      setHospitals(res.data);
+      // If adding a new profile, preselect the first hospital for convenience.
+      if (!editingProfile && res.data.length > 0 && !form.hospital_user_id) {
+        setForm((prev) => ({ ...prev, hospital_user_id: res.data[0].hospital_user_id }));
+      }
+    } catch {
+      // Ignore; caregiver can still save profiles without hospital assignment.
+    } finally {
+      setLoadingHospitals(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHospitals();
+  }, []);
 
   const onSave = async (event: FormEvent) => {
     event.preventDefault();
 
     const payload = {
-      user_id: DEMO_USER_ID,
       label: form.label || form.name || "My Profile",
       age: toNumber(form.age),
       weight_kg: toNumber(form.weight_kg),
@@ -74,9 +126,16 @@ const ProfilesPage = () => {
       setSaving(true);
       if (editingProfile) {
         await api.put(`/profiles/${editingProfile.id}`, payload);
+        if (form.hospital_user_id) {
+          await api.put(`/hospitals/profiles/${editingProfile.id}/hospital`, { hospital_user_id: form.hospital_user_id });
+        }
         toast.success("Profile updated");
       } else {
-        await api.post("/profiles", payload);
+        const res = await api.post("/profiles", payload);
+        const newProfileId = res.data.id;
+        if (form.hospital_user_id) {
+          await api.put(`/hospitals/profiles/${newProfileId}/hospital`, { hospital_user_id: form.hospital_user_id });
+        }
         toast.success("Profile created");
       }
       setIsModalOpen(false);
@@ -85,6 +144,31 @@ const ProfilesPage = () => {
       toast.error("Failed to save profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const addContact = async () => {
+    if (!editingProfile) return;
+    if (!newContactName.trim()) {
+      toast.error("Contact name is required");
+      return;
+    }
+    try {
+      setContactsLoading(true);
+      await api.post(`/profiles/${editingProfile.id}/emergency-contacts`, {
+        name: newContactName,
+        phone: newContactPhone || null,
+        relation: newContactRelation || null,
+      });
+      setNewContactName("");
+      setNewContactPhone("");
+      setNewContactRelation("");
+      await loadContacts(editingProfile.id);
+      toast.success("Emergency contact added");
+    } catch {
+      toast.error("Failed to add contact");
+    } finally {
+      setContactsLoading(false);
     }
   };
 
@@ -120,7 +204,7 @@ const ProfilesPage = () => {
               {profile.conditions || "No known conditions"}
             </p>
             <div className="mt-4 flex gap-2">
-              <button className="rounded-md border border-border px-3 py-1.5 text-sm" onClick={() => openEditModal(profile)}>
+                <button className="rounded-md border border-border px-3 py-1.5 text-sm" onClick={() => openEditModalAndLoad(profile)}>
                 Edit
               </button>
               <button className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-700" onClick={() => onDelete(profile.id)}>
@@ -146,9 +230,79 @@ const ProfilesPage = () => {
               <Input label="Resting HR" value={form.resting_hr} onChange={(value) => setForm((prev) => ({ ...prev, resting_hr: value }))} />
               <TextArea label="Allergies" value={form.allergies} onChange={(value) => setForm((prev) => ({ ...prev, allergies: value }))} />
               <TextArea label="Conditions" value={form.conditions} onChange={(value) => setForm((prev) => ({ ...prev, conditions: value }))} />
+              <label className="flex flex-col gap-1 text-sm md:col-span-1">
+                Hospital (1 per profile)
+                <select
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.hospital_user_id}
+                  onChange={(e) => setForm((prev) => ({ ...prev, hospital_user_id: e.target.value }))}
+                  disabled={loadingHospitals || hospitals.length === 0}
+                >
+                  {hospitals.length === 0 ? <option value="">No hospitals</option> : null}
+                  {hospitals.map((h) => (
+                    <option key={h.hospital_user_id} value={h.hospital_user_id}>
+                      {h.hospital_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="md:col-span-2">
                 <TextArea label="Medications" value={form.medications} onChange={(value) => setForm((prev) => ({ ...prev, medications: value }))} />
               </div>
+
+              {editingProfile ? (
+                <div className="md:col-span-2 rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold">Emergency Contacts</h4>
+                    <button type="button" className="rounded-md border border-border px-2 py-1 text-xs" onClick={() => loadContacts(editingProfile.id)}>
+                      Refresh
+                    </button>
+                  </div>
+
+                  {contactsLoading ? (
+                    <div className="mt-2 text-xs text-muted-foreground">Loading contacts...</div>
+                  ) : contacts.length === 0 ? (
+                    <div className="mt-2 text-xs text-muted-foreground">No contacts added yet.</div>
+                  ) : (
+                    <div className="mt-2 space-y-2">
+                      {contacts.map((c, idx) => (
+                        <div key={`${c.name}-${idx}`} className="rounded-md border border-border bg-card p-2">
+                          <div className="text-sm font-medium">{c.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {c.relation ? `${c.relation} • ` : ""}
+                            {c.phone || "No phone"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                    <input
+                      className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      placeholder="Name"
+                      value={newContactName}
+                      onChange={(e) => setNewContactName(e.target.value)}
+                    />
+                    <input
+                      className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      placeholder="Phone"
+                      value={newContactPhone}
+                      onChange={(e) => setNewContactPhone(e.target.value)}
+                    />
+                    <input
+                      className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      placeholder="Relation"
+                      value={newContactRelation}
+                      onChange={(e) => setNewContactRelation(e.target.value)}
+                    />
+                  </div>
+
+                  <button type="button" className="mt-3 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" onClick={addContact}>
+                    Add Contact
+                  </button>
+                </div>
+              ) : null}
 
               <div className="mt-3 flex gap-2 md:col-span-2">
                 <button type="button" className="rounded-md border border-border px-4 py-2 text-sm" onClick={() => setIsModalOpen(false)}>

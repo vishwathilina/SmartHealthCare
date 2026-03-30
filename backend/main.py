@@ -1,6 +1,7 @@
 import uuid
 from pathlib import Path
 
+import os
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,16 +10,22 @@ from sqlalchemy import text
 
 import models
 from database import Base, SessionLocal, engine
-from routers import alerts, chat, dashboard, profiles, requests
+from routers import alerts, auth, chat, dashboard, emergency, hospitals, profiles, requests
+from ai.voice_handler import voice_router
 
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Smart Healthcare Assistant API")
 
+cors_origins_raw = os.getenv("CORS_ORIGINS")
+cors_origins = None
+if cors_origins_raw:
+    cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +38,10 @@ app.include_router(requests.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(alerts.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(hospitals.router, prefix="/api")
+app.include_router(emergency.router, prefix="/api")
+app.include_router(voice_router, prefix="/api")
 
 
 @app.on_event("startup")

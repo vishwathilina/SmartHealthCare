@@ -7,29 +7,48 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from database import get_db
+from dependencies import get_current_caregiver
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 @router.get("", response_model=schemas.DashboardOut)
-def get_dashboard(db: Session = Depends(get_db)):
-    total_requests = db.query(func.count(models.ServiceRequest.id)).scalar() or 0
+def get_dashboard(db: Session = Depends(get_db), caregiver=Depends(get_current_caregiver)):
+    total_requests = (
+        db.query(func.count(models.ServiceRequest.id))
+        .join(models.HealthProfile, models.HealthProfile.id == models.ServiceRequest.profile_id)
+        .filter(models.HealthProfile.user_id == caregiver.id)
+        .scalar()
+        or 0
+    )
 
     today = datetime.now(timezone.utc).date()
     critical_today = (
         db.query(func.count(models.ServiceRequest.id))
+        .join(models.HealthProfile, models.HealthProfile.id == models.ServiceRequest.profile_id)
+        .filter(models.HealthProfile.user_id == caregiver.id)
         .filter(models.ServiceRequest.priority == "CRITICAL")
         .filter(func.date(models.ServiceRequest.created_at) == today)
         .scalar()
         or 0
     )
 
-    alerts_sent = db.query(func.count(models.AlertLog.id)).scalar() or 0
-    active_profiles = db.query(func.count(models.HealthProfile.id)).scalar() or 0
+    alerts_sent = (
+        db.query(func.count(models.AlertLog.id))
+        .join(models.ServiceRequest, models.ServiceRequest.id == models.AlertLog.request_id)
+        .join(models.HealthProfile, models.HealthProfile.id == models.ServiceRequest.profile_id)
+        .filter(models.HealthProfile.user_id == caregiver.id)
+        .scalar()
+        or 0
+    )
+    active_profiles = (
+        db.query(func.count(models.HealthProfile.id)).filter(models.HealthProfile.user_id == caregiver.id).scalar() or 0
+    )
 
     recent = (
         db.query(models.ServiceRequest, models.HealthProfile.label)
         .join(models.HealthProfile, models.HealthProfile.id == models.ServiceRequest.profile_id)
+        .filter(models.HealthProfile.user_id == caregiver.id)
         .order_by(models.ServiceRequest.created_at.desc())
         .limit(5)
         .all()

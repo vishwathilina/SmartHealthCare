@@ -1,5 +1,5 @@
 import { Mic, Paperclip, Send } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import api from "@/api/client";
@@ -27,12 +27,10 @@ const ChatPage = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-
-  const isCritical = useMemo(
-    () => messages.some((m) => m.role === "assistant" && m.priority === "CRITICAL"),
-    [messages],
-  );
+  const [audioMimeType, setAudioMimeType] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const onPickImage = async (file: File | null) => {
     if (!file) return;
@@ -88,56 +86,70 @@ const ChatPage = () => {
     }
   };
 
-  const sendAlert = async () => {
-    if (!requestId) return;
-
-    try {
-      await api.post("/alerts", { request_id: requestId, image_base64: imageBase64 || undefined });
-      toast.success("Alert sent to hospital");
-    } catch {
-      toast.error("Failed to send alert");
-    }
-  };
-
-  const startVoice = () => {
-    const Rec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Rec) {
-      toast.error("Voice input not supported in this browser");
+  const startVoice = async () => {
+    if (!navigator.mediaDevices || typeof MediaRecorder === "undefined") {
+      toast.error("Voice recording not supported in this browser");
       return;
     }
 
-    const recognition = new Rec();
-    recognition.lang = "en-US";
-    recognition.interimResults = true;
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = Array.from(event.results)
-        .map((r) => r[0].transcript)
-        .join(" ");
-      setInput(transcript);
-    };
-    recognition.onend = () => setIsRecording(false);
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsRecording(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      let mimeType: string | undefined;
+      const candidateTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+      for (const t of candidateTypes) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((MediaRecorder as any).isTypeSupported?.(t)) {
+          mimeType = t;
+          break;
+        }
+      }
+      setAudioMimeType(mimeType || null);
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        setIsRecording(false);
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+
+        const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
+        const audioFile = new File([blob], "voice-recording.webm", { type: mimeType || blob.type });
+        const audioB64 = await toBase64(audioFile);
+
+        try {
+          const { data } = await api.post<{ transcript: string }>(`/voice/transcribe`, {
+            audio_base64: audioB64,
+            audio_mime_type: mimeType || undefined,
+          });
+          if (data.transcript) setInput(data.transcript);
+        } catch {
+          toast.error("Failed to transcribe voice");
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      toast.error("Microphone permission denied");
+    }
   };
 
   const stopVoice = () => {
-    recognitionRef.current?.stop();
+    mediaRecorderRef.current?.stop();
     setIsRecording(false);
   };
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col rounded-xl border border-border bg-card">
       <div className="border-b border-border p-4">
-        {isCritical ? (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-            <p className="text-sm font-medium text-red-800">Critical situation detected — Send alert to hospital?</p>
-            <button className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white" onClick={sendAlert}>
-              Confirm
-            </button>
-          </div>
-        ) : null}
-
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Profile</span>
           <select
