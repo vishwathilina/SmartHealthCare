@@ -34,7 +34,7 @@ async def transcribe_audio(payload: VoiceTranscribeIn) -> dict[str, Any]:
     if not api_key:
         return {"transcript": "", "error": "use browser speech API"}
 
-    transcribe_model = os.getenv("GEMINI_TRANSCRIBE_MODEL", MODEL)
+    transcribe_model = MODEL
     endpoint = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{transcribe_model}:generateContent"

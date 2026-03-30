@@ -109,7 +109,8 @@ async def call_gemini(
     if not api_key:
         return SAFE_DEFAULT
 
-    model = model or os.getenv("GEMINI_TRIAGE_MODEL", "gemini-3-flash-preview")
+    # Hackathon MVP: always use the requested model.
+    model = model or "gemini-3-flash-preview"
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
