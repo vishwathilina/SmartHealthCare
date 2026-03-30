@@ -14,7 +14,11 @@ router = APIRouter(prefix="/hospitals", tags=["hospitals"])
 
 @router.get("", response_model=list[schemas.HospitalOut])
 def list_hospitals(db: Session = Depends(get_db), caregiver=Depends(get_current_caregiver)):
-    hospitals = db.query(models.HospitalAccount).join(models.User).all()
+    hospitals = (
+        db.query(models.HospitalAccount)
+        .join(models.User, models.User.id == models.HospitalAccount.user_id)
+        .all()
+    )
     out: list[schemas.HospitalOut] = []
     for h in hospitals:
         out.append(
@@ -84,12 +88,15 @@ def list_my_hospital_alerts(
     db: Session = Depends(get_db),
     hospital=Depends(get_current_hospital),
 ):
+    hospital_account = db.query(models.HospitalAccount).filter(models.HospitalAccount.user_id == hospital.id).first()
     alerts = (
         db.query(models.AlertLog)
         .options(
             joinedload(models.AlertLog.request).joinedload(models.ServiceRequest.profile),
         )
-        .filter(models.AlertLog.hospital_user_id == hospital.id)
+        .filter(
+            models.AlertLog.hospital_name == hospital_account.hospital_name if hospital_account else models.AlertLog.hospital_user_id == hospital.id
+        )
         .order_by(models.AlertLog.sent_at.desc())
         .all()
     )
@@ -102,6 +109,7 @@ def list_my_hospital_alerts(
                 id=alert.id,
                 request_id=alert.request_id,
                 hospital_name=alert.hospital_name,
+                hospital_user_id=alert.hospital_user_id,
                 summary=alert.summary,
                 image_url=alert.image_url,
                 status=alert.status,

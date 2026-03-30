@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.post<{ access_token: string }>("/auth/caregiver/login", { email, password });
       persist(res.data.access_token, "caregiver");
-      navigate("/");
+      navigate("/app");
     } catch {
       toast.error("Caregiver login failed");
       throw new Error("Caregiver login failed");
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.post<{ access_token: string }>("/auth/caregiver/register", { name, email, password, pin });
       persist(res.data.access_token, "caregiver");
-      navigate("/");
+      navigate("/app");
     } catch {
       toast.error("Caregiver registration failed");
       throw new Error("Caregiver registration failed");

@@ -13,8 +13,16 @@ import NotFound from "./pages/NotFound.tsx";
 import LoginPage from "./pages/LoginPage";
 import EmergencyPage from "./pages/EmergencyPage";
 import HospitalAlertsPage from "./pages/HospitalAlertsPage";
+import HomePage from "./pages/HomePage";
+import RegisterPage from "./pages/RegisterPage";
 
-function RequireRole({ role, children }: { role: "caregiver"; children: JSX.Element }) {
+function RequireRole({
+  role,
+  children,
+}: {
+  role: "caregiver" | "hospital";
+  children: JSX.Element;
+}) {
   const { token, role: authRole } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
   if (authRole !== role) return <Navigate to="/login" replace />;
@@ -28,11 +36,16 @@ export default function App() {
         <ProfileProvider>
           <Toaster position="top-right" />
           <Routes>
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route path="/emergency" element={<EmergencyPage />} />
-            <Route path="/hospital/alerts" element={<HospitalAlertsPage />} />
             <Route
-              path="/"
+              path="/hospital/alerts"
+              element={<RequireRole role="hospital"><HospitalAlertsPage /></RequireRole>}
+            />
+            <Route
+              path="/app"
               element={
                 <RequireRole role="caregiver">
                   <AppShell />

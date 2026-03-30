@@ -5,11 +5,11 @@ import { useState } from "react";
 import { useProfileContext } from "@/context/ProfileContext";
 
 const navItems = [
-  { to: "/", label: "Dashboard" },
-  { to: "/profiles", label: "Profiles" },
-  { to: "/chat", label: "New Request" },
-  { to: "/requests", label: "Requests" },
-  { to: "/alerts", label: "Alerts" },
+  { to: "/app", label: "Dashboard" },
+  { to: "/app/profiles", label: "Profiles" },
+  { to: "/app/chat", label: "New Request" },
+  { to: "/app/requests", label: "Requests" },
+  { to: "/app/alerts", label: "Alerts" },
 ];
 
 const AppShell = () => {

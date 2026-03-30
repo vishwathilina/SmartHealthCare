@@ -120,6 +120,7 @@ class AlertLogOut(BaseModel):
     id: UUID
     request_id: UUID
     hospital_name: str
+    hospital_user_id: UUID | None = None
     summary: Optional[str] = None
     image_url: Optional[str] = None
     status: str

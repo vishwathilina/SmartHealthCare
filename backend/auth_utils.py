@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 import models
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt can break with certain Windows wheels/version combinations.
+# pbkdf2_sha256 is reliable and avoids bcrypt native deps.
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
 def _get_env(name: str, default: str) -> str:

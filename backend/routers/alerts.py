@@ -91,6 +91,7 @@ def list_alerts(db: Session = Depends(get_db), caregiver=Depends(get_current_car
                 id=alert.id,
                 request_id=alert.request_id,
                 hospital_name=alert.hospital_name,
+                hospital_user_id=alert.hospital_user_id,
                 summary=alert.summary,
                 image_url=alert.image_url,
                 status=alert.status,
