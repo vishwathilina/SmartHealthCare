@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import api from "@/api/client";
+import { getApiErrorMessage } from "@/lib/httpError";
 
 type Role = "caregiver" | "hospital";
 
@@ -45,9 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.post<{ access_token: string }>("/auth/caregiver/login", { email, password });
       persist(res.data.access_token, "caregiver");
       navigate("/app");
-    } catch {
-      toast.error("Caregiver login failed");
-      throw new Error("Caregiver login failed");
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Caregiver login failed");
+      toast.error(message);
+      throw new Error(message);
     }
   };
 
@@ -66,9 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.post<{ access_token: string }>("/auth/caregiver/register", { name, email, password, pin });
       persist(res.data.access_token, "caregiver");
       navigate("/app");
-    } catch {
-      toast.error("Caregiver registration failed");
-      throw new Error("Caregiver registration failed");
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Caregiver registration failed");
+      toast.error(message);
+      throw new Error(message);
     }
   };
 
@@ -77,9 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await api.post<{ access_token: string }>("/auth/hospital/login", { email, password });
       persist(res.data.access_token, "hospital");
       navigate("/hospital/alerts");
-    } catch {
-      toast.error("Hospital login failed");
-      throw new Error("Hospital login failed");
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Hospital login failed");
+      toast.error(message);
+      throw new Error(message);
     }
   };
 
@@ -100,9 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       persist(res.data.access_token, "hospital");
       navigate("/hospital/alerts");
-    } catch {
-      toast.error("Hospital registration failed");
-      throw new Error("Hospital registration failed");
+    } catch (error) {
+      const message = getApiErrorMessage(error, "Hospital registration failed");
+      toast.error(message);
+      throw new Error(message);
     }
   };
 

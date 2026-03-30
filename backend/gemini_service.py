@@ -15,6 +15,33 @@ SAFE_DEFAULT = {
 }
 
 
+def _extract_text_from_gemini_response(data: dict[str, Any]) -> str:
+    candidates = data.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        raise ValueError("Missing candidates in Gemini response")
+
+    content = candidates[0].get("content")
+    if isinstance(content, dict):
+        parts = content.get("parts")
+        if isinstance(parts, list) and parts and isinstance(parts[0], dict):
+            text = parts[0].get("text")
+            if isinstance(text, str):
+                return text
+
+    if isinstance(content, list) and content and isinstance(content[0], dict):
+        parts = content[0].get("parts")
+        if isinstance(parts, list) and parts and isinstance(parts[0], dict):
+            text = parts[0].get("text")
+            if isinstance(text, str):
+                return text
+
+    raise ValueError("Unable to extract text from Gemini response")
+
+
+def _strip_data_uri(value: str) -> str:
+    return value.split(",", 1)[1] if "," in value else value
+
+
 def build_prompt(profile: Any, message: str, has_image: bool) -> str:
     return f"""System: You are a medical triage AI assistant. A patient is describing their symptoms.
 You have access to their health profile and must factor it into your assessment.
@@ -109,8 +136,7 @@ async def call_gemini(
     if not api_key:
         return SAFE_DEFAULT
 
-    # Hackathon MVP: always use the requested model.
-    model = model or "gemini-3-flash-preview"
+    model = model or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -123,7 +149,7 @@ async def call_gemini(
             {
                 "inlineData": {
                     "mimeType": "image/jpeg",
-                    "data": image_base64,
+                    "data": _strip_data_uri(image_base64),
                 }
             }
         )
@@ -135,7 +161,7 @@ async def call_gemini(
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            raw_text = _extract_text_from_gemini_response(data)
             parsed = json.loads(_strip_markdown_fences(raw_text))
             return normalize_triage_payload(parsed)
     except Exception:  # noqa: BLE001

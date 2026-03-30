@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL = "gemini-3-flash-preview"
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 ENDPOINT = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"{MODEL}:generateContent"

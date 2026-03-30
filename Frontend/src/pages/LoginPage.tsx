@@ -1,5 +1,4 @@
 import { FormEvent, useMemo, useState } from "react";
-import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/context/AuthContext";
@@ -25,7 +24,7 @@ export default function LoginPage() {
         await loginHospital({ email, password });
       }
     } catch {
-      toast.error("Auth failed");
+      // AuthContext already shows a precise toast.
     }
   };
 

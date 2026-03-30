@@ -27,12 +27,16 @@ export default function RegisterPage() {
     e.preventDefault();
     try {
       if (role === "caregiver") {
+        if (!/^\d{6}$/.test(pin.trim())) {
+          toast.error("PIN must be exactly 6 digits");
+          return;
+        }
         await registerCaregiver({ name, email, password, pin });
       } else {
         await registerHospital({ hospital_name: hospitalName, email, password });
       }
     } catch {
-      toast.error("Registration failed");
+      // AuthContext already shows a precise toast.
     }
   };
 

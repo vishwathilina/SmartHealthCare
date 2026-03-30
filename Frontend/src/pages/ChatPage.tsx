@@ -6,6 +6,7 @@ import api from "@/api/client";
 import { SeverityBadge } from "@/components/common/Badges";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useProfileContext } from "@/context/ProfileContext";
+import { getApiErrorMessage } from "@/lib/httpError";
 import { ChatMessage, Priority, UUID } from "@/types";
 
 interface ChatResponse {
@@ -79,8 +80,8 @@ const ChatPage = () => {
       setMessages((prev) => [...prev, aiMessage]);
       setImageBase64(null);
       setPreviewUrl(null);
-    } catch {
-      toast.error("Failed to send message");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Failed to send message"));
     } finally {
       setLoading(false);
     }
@@ -130,8 +131,8 @@ const ChatPage = () => {
             audio_mime_type: mimeType || undefined,
           });
           if (data.transcript) setInput(data.transcript);
-        } catch {
-          toast.error("Failed to transcribe voice");
+        } catch (error) {
+          toast.error(getApiErrorMessage(error, "Failed to transcribe voice"));
         }
       };
 

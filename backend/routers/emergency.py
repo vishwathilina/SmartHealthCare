@@ -31,7 +31,7 @@ async def _transcribe_with_gemini(audio_base64: str, audio_mime_type: str | None
     if not api_key:
         return ""
 
-    model = "gemini-3-flash-preview"
+    model = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
     endpoint = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent"
